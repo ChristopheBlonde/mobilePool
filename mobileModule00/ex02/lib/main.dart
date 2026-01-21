@@ -23,8 +23,8 @@ class HomePage extends StatelessWidget {
       appBar: const CustomAppBar(title: 'Calculator'),
       body: Column(
         children: const [
-          Expanded(flex: 3, child: CalculatorDisplay()),
-          Expanded(flex: 7, child: CalculatorKeypad()),
+          Expanded(flex: 4, child: CalculatorDisplay()),
+          Expanded(flex: 6, child: CalculatorKeypad()),
         ],
       ),
     );
@@ -56,6 +56,46 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
+class CalculatorTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final Color textColor;
+  final FontWeight fontWeight;
+  final double fontSizeRatio;
+
+  const CalculatorTextField({
+    super.key,
+    required this.controller,
+    this.textColor = Colors.white,
+    this.fontWeight = FontWeight.normal,
+    this.fontSizeRatio = 0.06,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = constraints.maxWidth * fontSizeRatio;
+
+        return TextField(
+          controller: controller,
+          readOnly: true,
+          enabled: false,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: textColor,
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+          ),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class CalculatorDisplay extends StatefulWidget {
   const CalculatorDisplay({super.key});
 
@@ -64,67 +104,61 @@ class CalculatorDisplay extends StatefulWidget {
 }
 
 class _CalculatorDisplayState extends State<CalculatorDisplay> {
-  String input = '0';
-  String result = '0';
+  final TextEditingController inputController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController resultController = TextEditingController(
+    text: '0',
+  );
 
   void updateInput(String value) {
     setState(() {
-      input = value;
+      inputController.text = value;
     });
   }
 
   void updateResult(String value) {
     setState(() {
-      result = value;
+      resultController.text = value;
     });
+  }
+
+  @override
+  void dispose() {
+    inputController.dispose();
+    resultController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(20),
-          ),
+          decoration: BoxDecoration(color: Color(0xff23a160)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Align(
                   alignment: Alignment.bottomRight,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      input,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 28,
-                      ),
-                    ),
+                  child: CalculatorTextField(
+                    controller: inputController,
+                    textColor: Colors.white70,
+                    fontSizeRatio: 0.04,
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
               Expanded(
                 child: Align(
                   alignment: Alignment.bottomRight,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      result,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  child: CalculatorTextField(
+                    controller: resultController,
+                    textColor: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSizeRatio: 0.05,
                   ),
                 ),
               ),
@@ -138,7 +172,7 @@ class _CalculatorDisplayState extends State<CalculatorDisplay> {
 
 class CalcButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final Function(String) onPressed;
   final Color backgroundColor;
   final Color textColor;
   final double flex;
@@ -154,25 +188,38 @@ class CalcButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
     return Expanded(
       flex: flex.toInt(),
       child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: EdgeInsets.symmetric(vertical: width * 0.05),
-          ),
-          onPressed: onPressed,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: width * 0.06, color: textColor),
-          ),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final buttonHeight = constraints.maxHeight;
+
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: backgroundColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () => onPressed(label),
+              child: Center(
+                // Instead of FittedBox
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: buttonHeight * 0.5, // Bigger font (was 0.4)
+                    color: textColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -184,22 +231,94 @@ class CalculatorKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            CalcButton(label: '7', onPressed: () {}),
-            CalcButton(label: '8', onPressed: () {}),
-            CalcButton(label: '9', onPressed: () {}),
-            CalcButton(
-              label: '÷',
-              backgroundColor: Colors.orange,
-              onPressed: () {},
+    void onPressedButton(String value) {
+      print('Button $value pressed');
+    }
+
+    return Container(
+      color: Color(0xFF19bf98),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                CalcButton(label: '7', onPressed: onPressedButton),
+                CalcButton(label: '8', onPressed: onPressedButton),
+                CalcButton(label: '9', onPressed: onPressedButton),
+                CalcButton(
+                  label: 'C',
+                  backgroundColor: Colors.orange,
+                  textColor: Colors.red,
+                  onPressed: onPressedButton,
+                ),
+                CalcButton(
+                  label: 'AC',
+                  backgroundColor: Colors.orange,
+                  textColor: Colors.red,
+                  onPressed: onPressedButton,
+                ),
+              ],
             ),
-          ],
-        ),
-        // autres lignes...
-      ],
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                CalcButton(label: '4', onPressed: onPressedButton),
+                CalcButton(label: '5', onPressed: onPressedButton),
+                CalcButton(label: '6', onPressed: onPressedButton),
+                CalcButton(
+                  label: '+',
+                  textColor: Color(0xFF1a1470),
+                  onPressed: onPressedButton,
+                ),
+                CalcButton(
+                  label: '-',
+                  textColor: Color(0xFF1a1470),
+                  onPressed: onPressedButton,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                CalcButton(label: '1', onPressed: onPressedButton),
+                CalcButton(label: '2', onPressed: onPressedButton),
+                CalcButton(label: '3', onPressed: onPressedButton),
+                CalcButton(
+                  label: 'x',
+                  textColor: Color(0xFF1a1470),
+                  onPressed: onPressedButton,
+                ),
+                CalcButton(
+                  label: '÷',
+                  textColor: Color(0xFF1a1470),
+                  onPressed: onPressedButton,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                CalcButton(label: '0', onPressed: onPressedButton),
+                CalcButton(
+                  label: '.',
+                  textColor: Color(0xFF1a1470),
+                  onPressed: onPressedButton,
+                ),
+                CalcButton(label: '00', flex: 2, onPressed: onPressedButton),
+                CalcButton(
+                  label: '=',
+                  textColor: Color(0xFF1a1470),
+                  flex: 2,
+                  onPressed: onPressedButton,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
