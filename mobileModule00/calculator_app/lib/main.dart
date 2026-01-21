@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 void main() {
   runApp(const MainApp());
@@ -48,7 +49,97 @@ class _HomePageState extends State<HomePage> {
   }
 
   void handlePressedButton(String value) {
-    print('Button $value pressed');
+    String currentInput = inputController.text;
+    String lastChar = '';
+    const List<String> operators = ['+', '-', 'x', '÷'];
+
+    if (currentInput.isNotEmpty) {
+      lastChar = currentInput[currentInput.length - 1];
+    }
+
+    bool lastTwoAreOperators =
+        currentInput.length > 1 &&
+        operators.contains(lastChar) &&
+        operators.contains(currentInput[currentInput.length - 2]);
+
+    bool isNumber(String value) {
+      return int.tryParse(value) != null;
+    }
+
+    String getLastnumber(String input) {
+      int lastOperatorIndex = -1;
+      for (String operator in operators) {
+        int index = input.lastIndexOf(operator);
+        if (index > lastOperatorIndex) {
+          lastOperatorIndex = index;
+        }
+      }
+      return input.substring(lastOperatorIndex + 1);
+    }
+
+    String convertToMathExpression(String input) {
+      return input.replaceAll('x', '*').replaceAll('÷', '/');
+    }
+
+    if (value == 'AC') {
+      updateInput('0');
+      updateResult('0');
+    } else if (value == 'C') {
+      if (currentInput.length > 1) {
+        updateInput(currentInput.substring(0, currentInput.length - 1));
+      } else {
+        updateInput('0');
+      }
+    } else if (value == '=') {
+      try {
+        String mathExpression = convertToMathExpression(currentInput);
+        ShuntingYardParser parser = ShuntingYardParser();
+        Expression exp = parser.parse(mathExpression);
+        double result = exp.evaluate(EvaluationType.REAL, ContextModel());
+
+        result = double.parse(result.toStringAsFixed(10));
+
+        String resultStr;
+        if (result == result.toInt()) {
+          resultStr = result.toInt().toString();
+        } else {
+          resultStr = result.toString();
+        }
+
+        updateResult(resultStr);
+      } catch (e) {
+        updateResult('Error');
+      }
+    } else if (value == '.') {
+      String lastEntry = getLastnumber(currentInput);
+      if (lastEntry != '' && !lastEntry.contains('.')) {
+        updateInput(currentInput + value);
+      } else if (lastEntry == '' && operators.contains(lastChar)) {
+        const String defaultDecimal = '0.';
+        updateInput(currentInput + defaultDecimal);
+      }
+    } else if (value == '00') {
+      if (currentInput != '0') {
+        updateInput(currentInput + value);
+      }
+    } else if (isNumber(value)) {
+      if (currentInput == '0') {
+        updateInput(value);
+      } else {
+        updateInput(currentInput + value);
+      }
+    } else if (operators.contains(value)) {
+      if (lastChar == '-' && value == '-' && lastTwoAreOperators) {
+        return;
+      }
+      if ((operators.contains(lastChar) || lastChar == '.') && value != '-') {
+        updateInput(currentInput.substring(0, currentInput.length - 1) + value);
+      } else {
+        updateInput(currentInput + value);
+      }
+    } else {
+      updateInput(currentInput + value);
+    }
   }
 
   @override
